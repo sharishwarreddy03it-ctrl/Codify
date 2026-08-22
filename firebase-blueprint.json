@@ -1,0 +1,60 @@
+{
+  "entities": {
+    "UserProfile": {
+      "collection": "users",
+      "fields": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "xp": { "type": "number" },
+        "level": { "type": "number" },
+        "streak": { "type": "number" },
+        "lastActiveDate": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "preferredLanguage": { "type": "string" }
+      }
+    },
+    "UserProgress": {
+      "collection": "users/{userId}/progress",
+      "fields": {
+        "language": { "type": "string" },
+        "completedLessons": { "type": "array" },
+        "currentLessonId": { "type": "string" },
+        "quizScores": { "type": "map" },
+        "challengeScores": { "type": "map" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "UserChallenge": {
+      "collection": "users/{userId}/challenges",
+      "fields": {
+        "challengeId": { "type": "string" },
+        "language": { "type": "string" },
+        "status": { "type": "string" },
+        "score": { "type": "number" },
+        "userCode": { "type": "string" },
+        "completedAt": { "type": "string" }
+      }
+    },
+    "UserAchievement": {
+      "collection": "users/{userId}/achievements",
+      "fields": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "icon": { "type": "string" },
+        "unlockedAt": { "type": "string" }
+      }
+    },
+    "UserSandbox": {
+      "collection": "users/{userId}/sandboxCode",
+      "fields": {
+        "language": { "type": "string" },
+        "code": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      }
+    }
+  }
+}

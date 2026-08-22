@@ -1,0 +1,6 @@
+{
+  "name": "Codify",
+  "description": "Interactive coding learning platform for Python, C, and Java with lessons, hands-on coding sandbox, challenges, AI tutor, and gamified progress tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
