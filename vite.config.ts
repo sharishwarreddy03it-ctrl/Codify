@@ -6,7 +6,7 @@ import { defineConfig } from 'vite';
 export default defineConfig(() => {
   return {
     // Render serves Codify from the root URL.
-    base: '/',
+    base: process.env.GITHUB_ACTIONS === 'true' ? '/Codify/' : '/',
 
     plugins: [react(), tailwindcss()],
 
