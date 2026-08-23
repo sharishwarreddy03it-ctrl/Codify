@@ -3,12 +3,14 @@ import path from "path";
 import { GoogleGenAI } from "@google/genai";
 import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
+import cors from "cors";
 
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
+app.use(cors());
 app.use(express.json({ limit: "5mb" }));
 
 // Initialize Gemini API with user-agent
@@ -71,16 +73,28 @@ Instructions:
       },
     });
 
-    res.json({ reply: response.text || "I am ready to help you with your coding journey!" });
+    res.json({
+      reply: response.text || "I am ready to help you with your coding journey!",
+    });
   } catch (err: any) {
     console.error("AI Ask error:", err);
-    res.status(500).json({ error: "Failed to generate AI response", details: err?.message });
+    res.status(500).json({
+      error: "Failed to generate AI response",
+      details: err?.message,
+    });
   }
 });
 
 app.post("/api/ai/hint", async (req, res) => {
   try {
-    const { problemTitle, problemDescription, userCode, language, testCases } = req.body;
+    const {
+      problemTitle,
+      problemDescription,
+      userCode,
+      language,
+      testCases,
+    } = req.body;
+
     const ai = getAIClient();
 
     if (!ai) {
@@ -106,7 +120,11 @@ Provide a helpful, progressive hint without giving away the direct full answer. 
       contents: prompt,
     });
 
-    res.json({ hint: response.text || "Check your loop termination condition and variable updates." });
+    res.json({
+      hint:
+        response.text ||
+        "Check your loop termination condition and variable updates.",
+    });
   } catch (err: any) {
     console.error("AI Hint error:", err);
     res.status(500).json({ error: "Failed to generate hint" });
@@ -120,7 +138,8 @@ app.post("/api/ai/debug", async (req, res) => {
 
     if (!ai) {
       return res.json({
-        analysis: "Check for syntax errors, uninitialized variables, out-of-bounds array access, or missing return statements.",
+        analysis:
+          "Check for syntax errors, uninitialized variables, out-of-bounds array access, or missing return statements.",
       });
     }
 
@@ -144,7 +163,9 @@ Analyze the issue:
       contents: prompt,
     });
 
-    res.json({ analysis: response.text || "Verify your logic and variable states." });
+    res.json({
+      analysis: response.text || "Verify your logic and variable states.",
+    });
   } catch (err: any) {
     console.error("AI Debug error:", err);
     res.status(500).json({ error: "Failed to analyze code" });
@@ -155,14 +176,25 @@ Analyze the issue:
 app.post("/api/code/run", async (req, res) => {
   try {
     const { language, code, input = "" } = req.body;
-    
+
     // Validate inputs
     if (!code || typeof code !== "string") {
-      return res.status(400).json({ output: "", error: "No code provided" });
+      return res
+        .status(400)
+        .json({ output: "", error: "No code provided" });
     }
 
     // Safety checks against harmful operations in simulated environment
-    const forbiddenKeywords = ["child_process", "spawn", "exec", "fs.", "process.exit", "rm -rf", "socket"];
+    const forbiddenKeywords = [
+      "child_process",
+      "spawn",
+      "exec",
+      "fs.",
+      "process.exit",
+      "rm -rf",
+      "socket",
+    ];
+
     for (const kw of forbiddenKeywords) {
       if (code.includes(kw)) {
         return res.json({
@@ -174,6 +206,7 @@ app.post("/api/code/run", async (req, res) => {
     }
 
     const ai = getAIClient();
+
     if (ai) {
       // Use Gemini to accurately simulate standard output and runtime for Python/C/Java
       const prompt = `You are a sandboxed deterministic code execution simulator for educational platforms.
@@ -203,9 +236,12 @@ Return a JSON object with:
 
       try {
         const result = JSON.parse(response.text?.trim() || "{}");
+
         return res.json({
           output: result.stdout || "",
-          error: result.stderr || (result.hasError ? result.explanation : ""),
+          error:
+            result.stderr ||
+            (result.hasError ? result.explanation : ""),
           exitCode: result.exitCode ?? 0,
           executionTimeMs: Math.floor(Math.random() * 40) + 15,
         });
@@ -222,7 +258,10 @@ Return a JSON object with:
       executionTimeMs: 25,
     });
   } catch (err: any) {
-    res.status(500).json({ output: "", error: err?.message || "Execution error" });
+    res.status(500).json({
+      output: "",
+      error: err?.message || "Execution error",
+    });
   }
 });
 
@@ -233,17 +272,22 @@ async function startServer() {
       server: { middlewareMode: true },
       appType: "spa",
     });
+
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), "dist");
+
     app.use(express.static(distPath));
+
     app.get("*", (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Codify server running on http://0.0.0.0:${PORT}`);
+    console.log(
+      `Codify server running on http://0.0.0.0:${PORT}`
+    );
   });
 }
 
