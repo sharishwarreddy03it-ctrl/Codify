@@ -148,8 +148,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       if (!isMounted) return;
 
-      setLoading(true);
-
       try {
         if (fbUser) {
           setFirebaseUser(fbUser);
