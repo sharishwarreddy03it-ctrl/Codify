@@ -122,10 +122,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         fetchUserAchievements(uid),
       ]);
 
+      const emptyProgress = (language: Language): LanguageProgress => ({
+        language,
+        completedLessons: [],
+        currentLessonId:
+          language === 'python'
+            ? 'py-intro'
+            : language === 'c'
+              ? 'c-intro'
+              : 'java-intro',
+        quizScores: {},
+        challengeScores: {},
+        updatedAt: new Date().toISOString(),
+      });
+
       setProgress({
-        python: pyProg || progress.python,
-        c: cProg || progress.c,
-        java: javaProg || progress.java,
+        python: pyProg || emptyProgress('python'),
+        c: cProg || emptyProgress('c'),
+        java: javaProg || emptyProgress('java'),
       });
 
       setUnlockedAchievements(achs || {});
@@ -267,15 +281,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const completeLesson = async (language: Language, lessonId: string, quizScore?: number) => {
+  const completeLesson = async (
+    language: Language,
+    lessonId: string,
+    quizScore?: number
+  ) => {
     if (!user) return;
 
     const currentLangProg = progress[language];
     const completedSet = new Set(currentLangProg.completedLessons);
     const isNewCompletion = !completedSet.has(lessonId);
+
     completedSet.add(lessonId);
 
-    const updatedQuizScores = { ...currentLangProg.quizScores };
+    const updatedQuizScores = {
+      ...currentLangProg.quizScores,
+    };
+
     if (quizScore !== undefined) {
       updatedQuizScores[lessonId] = quizScore;
     }
@@ -288,52 +310,162 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updatedAt: new Date().toISOString(),
     };
 
-    setProgress((prev) => ({ ...prev, [language]: updatedProg }));
+    const updatedProgress = {
+      ...progress,
+      [language]: updatedProg,
+    };
+
+    setProgress(updatedProgress);
     await saveUserProgress(user.uid, updatedProg);
 
+    // ----------------------------------------------------------
+    // ACHIEVEMENTS + XP
+    // ----------------------------------------------------------
+    //
+    // Calculate all rewards first and award them together.
+    // This prevents multiple sequential gainXP() calls from using
+    // the same stale React "user" value and overwriting XP.
+    //
+    let xpToAward = isNewCompletion ? 50 : 0;
+    const rewardReasons: string[] = [];
+
     if (isNewCompletion) {
-      await gainXP(50, `Completed ${lessonId}`);
+      rewardReasons.push(`Completed ${lessonId}`);
     }
 
-    // Check achievement triggers
     const totalCompleted =
-      progress.python.completedLessons.length +
-      progress.c.completedLessons.length +
-      progress.java.completedLessons.length +
-      (isNewCompletion ? 1 : 0);
+      updatedProgress.python.completedLessons.length +
+      updatedProgress.c.completedLessons.length +
+      updatedProgress.java.completedLessons.length;
 
-    if (totalCompleted >= 1 && !unlockedAchievements['first-program']) {
-      await unlockUserAchievement(user.uid, 'first-program', 'First Program');
+    const unlockAchievement = async (
+      achievementId: string,
+      achievementTitle: string
+    ) => {
+      if (unlockedAchievements[achievementId]) {
+        return;
+      }
+
+      await unlockUserAchievement(
+        user.uid,
+        achievementId,
+        achievementTitle
+      );
+
+      const unlockedAt = new Date().toISOString();
+
       setUnlockedAchievements((prev) => ({
         ...prev,
-        'first-program': { unlockedAt: new Date().toISOString() },
+        [achievementId]: { unlockedAt },
       }));
+
+      const achievement = ACHIEVEMENTS.find(
+        (item) => item.id === achievementId
+      );
+
+      if (achievement) {
+        xpToAward += achievement.xpReward;
+        rewardReasons.push(`Unlocked ${achievementTitle}`);
+      }
+    };
+
+    // First completed lesson.
+    if (totalCompleted >= 1) {
+      await unlockAchievement(
+        'first-program',
+        'First Program'
+      );
     }
-    if (totalCompleted >= 10 && !unlockedAchievements['ten-lessons']) {
-      await unlockUserAchievement(user.uid, 'ten-lessons', '10 Lessons Completed');
-      setUnlockedAchievements((prev) => ({
-        ...prev,
-        'ten-lessons': { unlockedAt: new Date().toISOString() },
-      }));
+
+    // Python beginner fundamentals.
+    if (
+      language === 'python' &&
+      updatedProgress.python.completedLessons.length >= 3
+    ) {
+      await unlockAchievement(
+        'python-beginner',
+        'Python Beginner'
+      );
+    }
+
+    // C fundamentals.
+    if (
+      language === 'c' &&
+      updatedProgress.c.completedLessons.length >= 3
+    ) {
+      await unlockAchievement(
+        'c-fundamentals',
+        'C Fundamentals Mastered'
+      );
+    }
+
+    // Java explorer.
+    if (
+      language === 'java' &&
+      updatedProgress.java.completedLessons.length >= 3
+    ) {
+      await unlockAchievement(
+        'java-explorer',
+        'Java Explorer'
+      );
+    }
+
+    // Ten lessons across all languages.
+    if (totalCompleted >= 10) {
+      await unlockAchievement(
+        'ten-lessons',
+        '10 Lessons Completed'
+      );
+    }
+
+    if (xpToAward > 0) {
+      await gainXP(
+        xpToAward,
+        rewardReasons.join(' • ')
+      );
     }
   };
 
-  const completeChallenge = async (language: Language, challengeId: string, score: number) => {
+  const completeChallenge = async (
+    language: Language,
+    challengeId: string,
+    score: number
+  ) => {
     if (!user) return;
+
     const currentLangProg = progress[language];
+
+    const alreadySolved =
+      Object.prototype.hasOwnProperty.call(
+        currentLangProg.challengeScores,
+        challengeId
+      );
+
     const updatedScores = {
       ...currentLangProg.challengeScores,
       [challengeId]: score,
     };
+
     const updatedProg: LanguageProgress = {
       ...currentLangProg,
       challengeScores: updatedScores,
       updatedAt: new Date().toISOString(),
     };
 
-    setProgress((prev) => ({ ...prev, [language]: updatedProg }));
+    setProgress((prev) => ({
+      ...prev,
+      [language]: updatedProg,
+    }));
+
     await saveUserProgress(user.uid, updatedProg);
-    await gainXP(score, `Solved challenge ${challengeId}`);
+
+    // Award challenge XP only the first time the challenge is solved.
+    if (!alreadySolved) {
+      await gainXP(
+        score,
+        `Solved challenge ${challengeId}`
+      );
+    }
   };
 
   return (
