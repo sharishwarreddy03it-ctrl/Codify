@@ -277,7 +277,8 @@ public class Main {
       setResult({
         output: '',
         error: e.message || 'Execution error',
-        executionTimeMs: 0,
+        exitCode: 1,
+      executionTimeMs: 0,
         allPassed: false,
       });
     } finally {

@@ -25,7 +25,7 @@ import { UserProfile, LanguageProgress, Achievement, Language } from "../types";
 // Initialize Firebase App
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId || undefined);
+export const db = getFirestore(app);
 
 // Helper for local mock storage in case of offline or demo preview
 const LOCAL_STORAGE_KEY_USER = "codify_local_user";

@@ -130,7 +130,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onOpenAuthModal }) => 
           <div className="text-xs text-slate-400 mt-0.5">Lessons Completed</div>
         </div>
         <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 text-center">
-          <div className="text-2xl font-bold text-purple-400">{unlockedAchievements.length}</div>
+          <div className="text-2xl font-bold text-purple-400">{Object.keys(unlockedAchievements).length}</div>
           <div className="text-xs text-slate-400 mt-0.5">Badges Earned</div>
         </div>
       </div>

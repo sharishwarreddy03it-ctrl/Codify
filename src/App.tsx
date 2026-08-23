@@ -31,7 +31,7 @@ function MainApp() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Landing Page Mode (if user clicks "Explore" or isn't logged in and wants to see landing)
-  const [showLanding, setShowLanding] = useState<boolean>(false);
+  const [showLanding, setShowLanding] = useState<boolean>(true);
 
   const handleOpenAuth = (mode: 'signin' | 'signup' | 'forgot' = 'signin') => {
     setAuthMode(mode);
@@ -88,7 +88,7 @@ function MainApp() {
   }
 
   // If user explicitly chose to view Landing or is not logged in initially
-  if (!user && showLanding) {
+  if (!user) {
     return (
       <>
         <LandingPage
@@ -97,6 +97,7 @@ function MainApp() {
             if (lang) handleSelectLanguage(lang);
           }}
           onOpenLogin={() => handleOpenAuth('signin')}
+          onOpenSignup={() => handleOpenAuth('signup')}
         />
         <AuthModal
           isOpen={isAuthOpen}

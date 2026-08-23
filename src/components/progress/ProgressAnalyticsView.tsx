@@ -129,7 +129,7 @@ export const ProgressAnalyticsView: React.FC = () => {
             <div className="text-xs font-semibold text-slate-400">Badges Unlocked</div>
           </div>
           <div className="text-2xl font-bold text-white">
-            {unlockedAchievements.length} / {ACHIEVEMENTS.length}
+            {Object.keys(unlockedAchievements).length} / {ACHIEVEMENTS.length}
           </div>
         </div>
       </div>
@@ -255,13 +255,13 @@ export const ProgressAnalyticsView: React.FC = () => {
             </p>
           </div>
           <span className="text-xs font-bold text-indigo-400">
-            {unlockedAchievements.length} Unlocked
+            {Object.keys(unlockedAchievements).length} Unlocked
           </span>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
           {ACHIEVEMENTS.map((ach) => {
-            const isUnlocked = unlockedAchievements.includes(ach.id);
+            const isUnlocked = !!unlockedAchievements[ach.id];
             return (
               <div
                 key={ach.id}

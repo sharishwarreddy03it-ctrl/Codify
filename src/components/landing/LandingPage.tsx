@@ -21,11 +21,13 @@ import { Language } from '../../types';
 interface LandingPageProps {
   onStartLearning: (lang?: Language) => void;
   onOpenLogin: () => void;
+  onOpenSignup: () => void;
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({
   onStartLearning,
   onOpenLogin,
+  onOpenSignup,
 }) => {
   const [activeHeroLang, setActiveHeroLang] = useState<Language>('python');
   const [heroOutput, setHeroOutput] = useState<string | null>(null);
@@ -104,13 +106,6 @@ public class Main {
             >
               Log In
             </button>
-            <button
-              onClick={() => onStartLearning()}
-              className="px-4 sm:px-5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs sm:text-sm font-bold shadow-lg shadow-indigo-600/25 transition-all active:scale-95 flex items-center gap-1.5"
-            >
-              <span>Start Learning Free</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
           </div>
         </div>
       </nav>
@@ -138,24 +133,6 @@ public class Main {
             All-in-one educational platform with structured interactive lessons, runnable sandboxes, automated challenge grading, and an AI mentor for{' '}
             <strong className="text-slate-200">Python, C, and Java</strong>.
           </p>
-
-          {/* Hero CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 mb-16">
-            <button
-              onClick={() => onStartLearning('python')}
-              className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:via-indigo-500 hover:to-purple-500 text-white font-bold text-sm shadow-xl shadow-indigo-600/30 transition-all active:scale-95 flex items-center justify-center gap-2"
-            >
-              <span>Explore Curriculum</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => onStartLearning()}
-              className="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 font-semibold text-sm transition-all flex items-center justify-center gap-2"
-            >
-              <Terminal className="w-4 h-4 text-indigo-400" />
-              <span>Launch Hands-On IDE</span>
-            </button>
-          </div>
 
           {/* Interactive Live Sandbox Trial in Hero */}
           <div className="max-w-4xl mx-auto rounded-3xl bg-slate-900/90 border border-slate-800 shadow-2xl p-4 sm:p-6 text-left backdrop-blur-md">
@@ -253,7 +230,7 @@ public class Main {
                 </div>
               </div>
               <button
-                onClick={() => onStartLearning('python')}
+                onClick={onOpenSignup}
                 className="w-full py-2.5 px-4 rounded-xl bg-slate-800 group-hover:bg-indigo-600 text-slate-200 group-hover:text-white font-semibold text-xs transition-colors flex items-center justify-center gap-1.5"
               >
                 <span>Start Python Course</span>
@@ -281,7 +258,7 @@ public class Main {
                 </div>
               </div>
               <button
-                onClick={() => onStartLearning('c')}
+                onClick={onOpenSignup}
                 className="w-full py-2.5 px-4 rounded-xl bg-slate-800 group-hover:bg-indigo-600 text-slate-200 group-hover:text-white font-semibold text-xs transition-colors flex items-center justify-center gap-1.5"
               >
                 <span>Start C Course</span>
@@ -309,7 +286,7 @@ public class Main {
                 </div>
               </div>
               <button
-                onClick={() => onStartLearning('java')}
+                onClick={onOpenSignup}
                 className="w-full py-2.5 px-4 rounded-xl bg-slate-800 group-hover:bg-indigo-600 text-slate-200 group-hover:text-white font-semibold text-xs transition-colors flex items-center justify-center gap-1.5"
               >
                 <span>Start Java Course</span>

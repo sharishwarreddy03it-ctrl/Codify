@@ -28,7 +28,7 @@ interface PracticeChallengesViewProps {
 export const PracticeChallengesView: React.FC<PracticeChallengesViewProps> = ({
   onOpenAITutor,
 }) => {
-  const { progress, submitChallenge } = useAuth();
+  const { progress, completeChallenge } = useAuth();
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
 
   // Filters
@@ -65,12 +65,13 @@ export const PracticeChallengesView: React.FC<PracticeChallengesViewProps> = ({
       setResult(res);
       if (res.allPassed) {
         triggerConfetti();
-        submitChallenge(selectedChallenge.language, selectedChallenge.id, 100);
+        completeChallenge(selectedChallenge.language, selectedChallenge.id, 100);
       }
     } catch (err: any) {
       setResult({
         output: '',
         error: err.message || 'Execution error',
+        exitCode: 1,
         executionTimeMs: 0,
         allPassed: false,
       });

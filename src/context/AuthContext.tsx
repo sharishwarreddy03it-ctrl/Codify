@@ -7,7 +7,6 @@ import {
   saveUserProgress,
   fetchUserAchievements,
   unlockUserAchievement,
-  getLocalFallbackUser,
 } from '../lib/firebase';
 import {
   signInWithEmailAndPassword,
@@ -136,38 +135,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
+    let isMounted = true;
+
+    // Safety timeout: don't leave the app stuck on the loading screen forever.
+    const loadingTimeout = window.setTimeout(() => {
+      if (isMounted) {
+        console.warn('Firebase authentication initialization timed out.');
+        setLoading(false);
+      }
+    }, 30000);
+
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+      if (!isMounted) return;
+
       setLoading(true);
-      if (fbUser) {
-        setFirebaseUser(fbUser);
-        await loadUserData(fbUser.uid, fbUser.email || '', fbUser.displayName || '');
-      } else {
-        setFirebaseUser(null);
-        // If guest fallback exists in local storage
-        const local = getLocalFallbackUser();
-        if (local) {
-          setUser(local);
+
+      try {
+        if (fbUser) {
+          setFirebaseUser(fbUser);
+          await loadUserData(
+            fbUser.uid,
+            fbUser.email || '',
+            fbUser.displayName || ''
+          );
         } else {
-          // initialize a default student guest profile
-          const defaultGuest: UserProfile = {
-            uid: 'guest_student',
-            email: 'student@codify.edu',
-            displayName: 'Alex Chen',
-            xp: 250,
-            level: 1,
-            streak: 3,
-            lastActiveDate: new Date().toISOString().split('T')[0],
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            preferredLanguage: 'python',
-          };
-          setUser(defaultGuest);
+          setFirebaseUser(null);
+          setUser(null);
+        }
+      } catch (error) {
+        console.error('Firebase authentication initialization failed:', error);
+
+        if (isMounted) {
+          setFirebaseUser(null);
+          setUser(null);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
         }
       }
-      setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      isMounted = false;
+      window.clearTimeout(loadingTimeout);
+      unsubscribe();
+    };
   }, []);
 
   const login = async (email: string, pass: string) => {
@@ -196,21 +209,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const loginDemoUser = async () => {
-    const demoProfile: UserProfile = {
-      uid: 'demo_user_' + Math.random().toString(36).substring(2, 7),
-      email: 'demo.student@codify.dev',
-      displayName: 'Demo Student',
-      xp: 450,
-      level: 2,
-      streak: 5,
-      lastActiveDate: new Date().toISOString().split('T')[0],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      preferredLanguage: 'python',
-    };
-    setUser(demoProfile);
-    saveUserProfile(demoProfile);
-    setRecentNotification('Logged in as Demo Student with sample progress & XP!');
+    // Demo login is still a real Firebase Authentication session.
+    // The account is created automatically the first time the demo is used.
+    const demoEmail = 'demo.student@codify.dev';
+    const demoPassword = 'CodifyDemo#2026!';
+
+    try {
+      let cred;
+
+      try {
+        cred = await signInWithEmailAndPassword(auth, demoEmail, demoPassword);
+      } catch (error: any) {
+        // Create the Firebase demo account only when it does not exist yet.
+        if (error?.code !== 'auth/user-not-found') {
+          throw error;
+        }
+
+        cred = await createUserWithEmailAndPassword(auth, demoEmail, demoPassword);
+        await updateProfile(cred.user, { displayName: 'Demo Student' });
+      }
+
+      await loadUserData(cred.user.uid, cred.user.email || demoEmail, cred.user.displayName || 'Demo Student');
+      setRecentNotification('Logged in as Demo Student with Firebase Authentication.');
+    } catch (error: any) {
+      console.error('Demo login failed:', error);
+      throw new Error(error?.message || 'Demo login failed. Please check Firebase Email/Password authentication.');
+    }
   };
 
   const resetPassword = async (email: string) => {

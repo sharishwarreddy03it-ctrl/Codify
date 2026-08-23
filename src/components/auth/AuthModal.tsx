@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { X, LogIn, UserPlus, KeyRound, Sparkles, AlertCircle, CheckCircle } from 'lucide-react';
+import { X, LogIn, UserPlus, KeyRound, AlertCircle, CheckCircle } from 'lucide-react';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -21,7 +21,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { login, signup, resetPassword, loginDemoUser } = useAuth();
+  const { login, signup, resetPassword } = useAuth();
 
   if (!isOpen) return null;
 
@@ -41,6 +41,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           setIsSubmitting(false);
           return;
         }
+
         await signup(name, email, password);
         onClose();
       } else if (mode === 'forgot') {
@@ -63,13 +64,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleDemoLogin = async () => {
-    setIsSubmitting(true);
-    await loginDemoUser();
-    setIsSubmitting(false);
-    onClose();
   };
 
   return (
@@ -139,16 +133,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             Sign Up
           </button>
         </div>
-
-        {/* Demo Fast Login Button */}
-        <button
-          onClick={handleDemoLogin}
-          type="button"
-          className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-purple-900/60 to-indigo-900/60 hover:from-purple-800/70 hover:to-indigo-800/70 border border-purple-500/30 text-purple-200 text-xs font-semibold flex items-center justify-center gap-2 mb-5 transition-all shadow-md active:scale-95"
-        >
-          <Sparkles className="w-4 h-4 text-amber-400" />
-          <span>Quick 1-Click Demo Login (Instant Access)</span>
-        </button>
 
         <div className="relative flex py-1 items-center mb-4">
           <div className="grow border-t border-slate-800"></div>
