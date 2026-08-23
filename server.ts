@@ -34,6 +34,111 @@ function getAIClient(): GoogleGenAI | null {
   return aiClient;
 }
 
+// Primary model first, then fallbacks.
+// If Google temporarily returns 503/429/500/504 (or a model is
+// unavailable), the next model is tried automatically.
+const AI_MODELS = [
+  "gemini-3.7-flash",
+  "gemini-3.6-flash",
+  "gemini-3.5-flash",
+  "gemini-3.5-flash-lite",
+  "gemini-2.5-flash",
+];
+
+function getErrorStatus(error: unknown): number | undefined {
+  if (typeof error === "object" && error !== null && "status" in error) {
+    const status = (error as { status?: unknown }).status;
+
+    if (typeof status === "number") {
+      return status;
+    }
+
+    if (typeof status === "string") {
+      const parsed = Number(status);
+      return Number.isNaN(parsed) ? undefined : parsed;
+    }
+  }
+
+  return undefined;
+}
+
+function shouldTryFallback(error: unknown): boolean {
+  const status = getErrorStatus(error);
+
+  // Temporary overload / rate-limit / server errors.
+  if ([429, 500, 503, 504].includes(status ?? -1)) {
+    return true;
+  }
+
+  // Also move to the next model if a configured model is unavailable.
+  if (status === 404) {
+    return true;
+  }
+
+  const message =
+    error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+
+  return (
+    message.includes("service unavailable") ||
+    message.includes("temporarily unavailable") ||
+    message.includes("high demand") ||
+    message.includes("overloaded") ||
+    message.includes("rate limit") ||
+    message.includes("too many requests") ||
+    message.includes("model not found")
+  );
+}
+
+type GenerateConfig = Record<string, unknown>;
+
+async function generateWithFallback(
+  ai: GoogleGenAI,
+  contents: string,
+  config?: GenerateConfig
+) {
+  let lastError: unknown = null;
+
+  for (let i = 0; i < AI_MODELS.length; i++) {
+    const model = AI_MODELS[i];
+
+    try {
+      console.log(`Gemini request: trying ${model}`);
+
+      const response = await ai.models.generateContent({
+        model,
+        contents,
+        ...(config ? { config } : {}),
+      });
+
+      console.log(`Gemini request succeeded with ${model}`);
+
+      return {
+        response,
+        model,
+      };
+    } catch (error) {
+      lastError = error;
+
+      console.error(
+        `Gemini model ${model} failed:`,
+        error instanceof Error ? error.message : error
+      );
+
+      // If this is not a temporary/model-availability problem,
+      // do not hide the actual API error behind another model.
+      if (!shouldTryFallback(error)) {
+        throw error;
+      }
+
+      if (i < AI_MODELS.length - 1) {
+        console.log(`Falling back from ${model} to ${AI_MODELS[i + 1]}`);
+      }
+    }
+  }
+
+  throw lastError ?? new Error("All Gemini models failed.");
+}
+
 // ============================================================
 // HEALTH CHECK
 // ============================================================
@@ -43,6 +148,7 @@ app.get("/api/health", (_req, res) => {
     status: "ok",
     timestamp: new Date().toISOString(),
     aiConfigured: Boolean(process.env.GEMINI_API_KEY),
+    models: AI_MODELS,
   });
 });
 
@@ -101,10 +207,7 @@ Rules:
 - Keep the response concise.
 `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.7-flash",
-      contents: prompt,
-    });
+    const { response, model } = await generateWithFallback(ai, prompt);
 
     const reply = response.text?.trim();
 
@@ -113,6 +216,7 @@ Rules:
         reply ||
         "I could not generate an answer. Please try asking the question again.",
       source: reply ? "gemini" : "fallback",
+      model: reply ? model : undefined,
     });
   } catch (error) {
     console.error("AI Ask error:", error);
@@ -180,10 +284,7 @@ Rules:
 - Keep it to 2-5 sentences.
 `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.7-flash",
-      contents: prompt,
-    });
+    const { response, model } = await generateWithFallback(ai, prompt);
 
     const hint = response.text?.trim();
 
@@ -192,6 +293,7 @@ Rules:
         hint ||
         "Trace your variables through the loop and check what happens at the first and last input.",
       source: hint ? "gemini" : "fallback",
+      model: hint ? model : undefined,
     });
   } catch (error) {
     console.error("AI Hint error:", error);
@@ -259,10 +361,7 @@ Do not rewrite the entire program.
 Use beginner-friendly language.
 `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.7-flash",
-      contents: prompt,
-    });
+    const { response, model } = await generateWithFallback(ai, prompt);
 
     const analysis = response.text?.trim();
 
@@ -271,6 +370,7 @@ Use beginner-friendly language.
         analysis ||
         "Check your variables, conditions, loops, and return values carefully.",
       source: analysis ? "gemini" : "fallback",
+      model: analysis ? model : undefined,
     });
   } catch (error) {
     console.error("AI Debug error:", error);
@@ -365,12 +465,8 @@ If there is an error:
 - stderr must describe the error
 `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.7-flash",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-      },
+    const { response, model } = await generateWithFallback(ai, prompt, {
+      responseMimeType: "application/json",
     });
 
     try {
@@ -385,6 +481,7 @@ If there is an error:
             : ""),
         exitCode: result.exitCode ?? 0,
         executionTimeMs: 25,
+        model,
       });
     } catch {
       return res.json({
@@ -392,6 +489,7 @@ If there is an error:
         error: "Could not parse the execution result.",
         exitCode: 1,
         executionTimeMs: 25,
+        model,
       });
     }
   } catch (error) {
@@ -426,7 +524,6 @@ app.use(
 // "Expected a JavaScript-or-Wasm module but the server responded
 // with a MIME type of text/html"
 //
-// FIX:
 // Use a regular expression route instead of app.get("*").
 // This avoids Express/path-to-regexp wildcard route issues.
 app.get(/.*/, (req, res) => {
@@ -496,6 +593,8 @@ const server = app.listen(PORT, "0.0.0.0", () => {
       process.env.GEMINI_API_KEY ? "configured" : "NOT CONFIGURED"
     }`
   );
+
+  console.log(`Gemini fallback chain: ${AI_MODELS.join(" -> ")}`);
 });
 
 server.on("error", (error: NodeJS.ErrnoException) => {
